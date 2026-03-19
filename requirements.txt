@@ -1,10 +1,9 @@
 Django
 djangorestframework
 django-cors-headers
-djangorestframework-simplejwt
-django-allauth
 psycopg2-binary
 requests
 google-auth
 Pillow
+PyJWT
 

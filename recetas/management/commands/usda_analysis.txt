@@ -1,0 +1,18 @@
+Total foods: 7793
+Keys: ['foodClass', 'description', 'foodNutrients', 'foodAttributes', 'nutrientConversionFactors', 'isHistoricalReference', 'ndbNumber', 'fdcId', 'dataType', 'foodCategory', 'foodPortions', 'publicationDate', 'inputFoods']
+Description: Pillsbury Golden Layer Buttermilk Biscuits, Artificial Flavor, refrigerated dough
+Nutrients:
+ID: 1003 - Protein: 5.88 g
+ID: 1007 - Ash: 3.5 g
+ID: 1062 - Energy: 1290.0 kJ
+ID: 1079 - Fiber, total dietary: 1.2 g
+ID: 1089 - Iron, Fe: 2.12 mg
+ID: 1093 - Sodium, Na: 1060.0 mg
+ID: 1253 - Cholesterol: 0.0 mg
+ID: 1257 - Fatty acids, total trans: 4.41 g
+ID: 1258 - Fatty acids, total saturated: 2.94 g
+ID: 1004 - Total lipid (fat): 13.2 g
+ID: 1005 - Carbohydrate, by difference: 41.2 g
+ID: 1008 - Energy: 307 kcal
+ID: 1051 - Water: 35.5 g
+ID: 2000 - Total Sugars: 5.88 g
