@@ -1,5 +1,20 @@
 from rest_framework import serializers
-from recetas.models import Receta, ComentarioReceta, ComentarioLike, RecetaLike, RecetaGuardada, Ingrediente, RecetaIngrediente
+from recetas.models import Receta, ComentarioReceta, ComentarioLike, RecetaLike, RecetaGuardada, Ingrediente, RecetaIngrediente, Pais, TipoPlato, EstiloVida
+
+class PaisSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Pais
+        fields = '__all__'
+
+class TipoPlatoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoPlato
+        fields = '__all__'
+
+class EstiloVidaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EstiloVida
+        fields = '__all__'
 
 class IngredienteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -23,6 +38,10 @@ class RecetaDetalleSerializer(serializers.ModelSerializer):
     contador_likes = serializers.IntegerField(read_only=True)
     liked = serializers.SerializerMethodField()
     ingredientes_detalle = RecetaIngredienteSerializer(many=True, required=False)
+    
+    pais_detalle = PaisSerializer(source='pais', read_only=True)
+    tipo_plato_detalle = TipoPlatoSerializer(source='tipo_plato', read_only=True)
+    estilos_vida_detalle = EstiloVidaSerializer(source='estilos_vida', many=True, read_only=True)
 
     def get_liked(self, obj):
         request = self.context.get("request")
@@ -41,7 +60,13 @@ class RecetaDetalleSerializer(serializers.ModelSerializer):
             'imagen_url',
             'video_url',
             'pais',
-            'categoria',
+            'pais_detalle',
+            'tipo_plato',
+            'tipo_plato_detalle',
+            'estilos_vida',
+            'estilos_vida_detalle',
+            'tiempo_preparacion',
+            'sugerencias',
             'dificultad',
             'numero_porcion',
             'usuario_nombre',

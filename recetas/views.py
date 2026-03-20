@@ -6,9 +6,11 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.db.models.functions import Length
-from recetas.models import Receta, ComentarioReceta, ComentarioLike, RecetaLike, RecetaGuardada, Ingrediente
-from recetas.serializers import RecetaDetalleSerializer, ComentarioRecetaSerializer, IngredienteSerializer
+from recetas.models import Receta, ComentarioReceta, ComentarioLike, RecetaLike, RecetaGuardada, Ingrediente, Pais, TipoPlato, EstiloVida
+from recetas.serializers import RecetaDetalleSerializer, ComentarioRecetaSerializer, IngredienteSerializer, PaisSerializer, TipoPlatoSerializer, EstiloVidaSerializer
 from usuarios.views import IsAdminUser
+from django.utils import timezone
+from usuarios.models import BannedUser
 
 class IngredienteListView(generics.ListAPIView):
     serializer_class = IngredienteSerializer
@@ -31,8 +33,38 @@ class IngredienteListView(generics.ListAPIView):
         # Ordenar por longitud (los ingredientes básicos tienen nombres más cortos)
         return queryset.annotate(nombre_len=Length('nombre')).order_by('nombre_len')[:50]
 
+class PaisListView(generics.ListCreateAPIView):
+    queryset = Pais.objects.all()
+    serializer_class = PaisSerializer
+    permission_classes = [AllowAny]
+
+class TipoPlatoListView(generics.ListCreateAPIView):
+    queryset = TipoPlato.objects.all()
+    serializer_class = TipoPlatoSerializer
+    permission_classes = [AllowAny]
+
+class EstiloVidaListView(generics.ListCreateAPIView):
+    queryset = EstiloVida.objects.all()
+    serializer_class = EstiloVidaSerializer
+    permission_classes = [AllowAny]
+
+class PaisDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Pais.objects.all()
+    serializer_class = PaisSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+class TipoPlatoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = TipoPlato.objects.all()
+    serializer_class = TipoPlatoSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+class EstiloVidaDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = EstiloVida.objects.all()
+    serializer_class = EstiloVidaSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
 class RecetaListView(generics.ListCreateAPIView):
-    queryset = Receta.objects.all().prefetch_related('ingredientes_detalle__ingrediente')
+    queryset = Receta.objects.all().select_related('pais', 'tipo_plato').prefetch_related('ingredientes_detalle__ingrediente', 'estilos_vida')
     serializer_class = RecetaDetalleSerializer
     def get_permissions(self):
         if self.request.method == 'POST': 
@@ -40,7 +72,7 @@ class RecetaListView(generics.ListCreateAPIView):
         return [AllowAny()]
 
 class RecetaDetalleView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Receta.objects.all().prefetch_related('ingredientes_detalle__ingrediente')
+    queryset = Receta.objects.all().select_related('pais', 'tipo_plato').prefetch_related('ingredientes_detalle__ingrediente', 'estilos_vida')
     serializer_class = RecetaDetalleSerializer
     lookup_field = 'id' 
     def get_permissions(self):
@@ -91,13 +123,26 @@ class ComentarioRecetaListCreate(APIView):
         receta_id = receta_id or request.query_params.get("receta_id")
         if not receta_id:
             return Response({"error": "receta_id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
-        comentarios = ComentarioReceta.objects.filter(
-            receta_id=receta_id, estado="visible"
-        ).order_by("fecha_creacion")
+        
+        
+        is_admin = getattr(request.user, 'role', None) == 'admin' or getattr(request.user, 'rol', None) == 'admin'
+        if request.user.is_authenticated and is_admin:
+            comentarios = ComentarioReceta.objects.filter(
+                receta_id=receta_id
+            ).order_by("fecha_creacion")
+        else:
+            comentarios = ComentarioReceta.objects.filter(
+                receta_id=receta_id, estado="visible"
+            ).order_by("fecha_creacion")
         serializer = ComentarioRecetaSerializer(comentarios, many=True, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, receta_id=None):
+        if request.user.is_authenticated:
+            banned = BannedUser.objects.filter(user_id=request.user.id, fecha_fin__gt=timezone.now()).first()
+            if banned:
+                return Response({"error": f"Estás baneado hasta {banned.fecha_fin.strftime('%d/%m/%Y %H:%M')}. Razón: {banned.razon}"}, status=status.HTTP_403_FORBIDDEN)
+
         receta_id = receta_id or request.data.get("receta_id")
         if not receta_id:
             return Response({"error": "receta_id es requerido"}, status=status.HTTP_400_BAD_REQUEST)
@@ -115,9 +160,19 @@ class ComentarioRecetaDetail(APIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     def patch(self, request, pk):
         comentario = get_object_or_404(ComentarioReceta, pk=pk)
-        if str(comentario.user_id) != str(request.user.id):
+        is_owner = str(comentario.user_id) == str(request.user.id)
+        is_admin = getattr(request.user, 'role', None) == 'admin'
+        
+        if not (is_owner or is_admin):
             return Response({"error": "No puedes editar este comentario"}, status=status.HTTP_403_FORBIDDEN)
-        serializer = ComentarioRecetaSerializer(comentario, data=request.data, partial=True)
+
+        data = request.data.copy()
+        if is_admin and not is_owner:
+            data = {"estado": request.data.get("estado")} if "estado" in request.data else {}
+            if not data:
+                return Response({"error": "Admins solo pueden ocultar/mostrar comentarios ajenos"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = ComentarioRecetaSerializer(comentario, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -126,7 +181,7 @@ class ComentarioRecetaDetail(APIView):
     def delete(self, request, pk):
         comentario = get_object_or_404(ComentarioReceta, pk=pk)
         is_owner = str(comentario.user_id) == str(request.user.id)
-        is_admin = request.user.role == 'admin'
+        is_admin = getattr(request.user, 'role', None) == 'admin'
         if not (is_owner or is_admin):
             return Response({"error": "No tienes permiso para eliminar este comentario"}, status=status.HTTP_403_FORBIDDEN)
         comentario.delete()

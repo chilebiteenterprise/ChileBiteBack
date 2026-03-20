@@ -10,6 +10,7 @@ Está construido con **Django 5.x** + **Django REST Framework**, y puede levanta
 * **Python 3.12+** – Lenguaje principal del backend.  
 * **Django 5.x** – Framework web y ORM.  
 * **Django REST Framework (DRF)** – Creación de endpoints RESTful.  
+* **Supabase JWT Auth** – Autenticación delegada "Stateless" a través de tokens JWT firmados y roles de usuario.
 * **PostgreSQL** – Base de datos relacional.  
 * **Docker & Docker Compose** – Contenedores para desarrollo y despliegue.  
 * **pip** – Gestión de dependencias y paquetes.
@@ -46,14 +47,27 @@ Antes de levantar el backend necesitas:
 | `.env`                 | Variables de entorno (DB, puertos, etc.). |
 
 > [!TIP]
-> **Nota:** Modifica `.env` si cambias el puerto o la URL de la base de datos. Ejemplo:
+> **Nota:** Modifica `.env` si cambias el puerto o la configuración. Ejemplo de variables necesarias:
 > ```env
 > DB_NAME=chilebite
 > DB_USER=usuario
 > DB_PASSWORD=contraseña
 > DB_HOST=localhost
 > DB_PORT=5432
+> SUPABASE_URL=https://[tu-id].supabase.co
+> SUPABASE_ANON_KEY=ey...
 > ```
+
+---
+
+## 🔒 Autenticación y Moderación (Supabase)
+
+La versión madura de este backend no posee una tabla `User` tradicional local para el registro.
+Todas las operaciones de **creación, inicio de sesión y gestión de perfiles** ocurren de forma directa contra `public.profiles` en Supabase.
+El backend solo consume tokens JWT a través de la librería `PyJWKClient` validándolos internamente para autorizar peticiones restringidas a endpoints como `/api/recetas/` o la moderación en `/api/usuarios/ban/`.
+
+Opciones de Moderación:
+- **Banear Usuarios (`POST /api/usuarios/ban/`)**: Permite a los administradores registrar un ID de Supabase en la tabla interna `BannedUser` del backend, impidiendo temporalmente sus interacciones.
 
 ---
 
@@ -157,10 +171,9 @@ git push origin feature/nombre-de-tu-mejora
 
 ## 🚀 Próximos pasos / Roadmap
 
-* Integrar autenticación JWT para usuarios.
-* Mejorar permisos y seguridad en endpoints.
-* Crear fixtures con datos iniciales de prueba.
-* Añadir tests unitarios y de integración.
+* Mejorar permisos granulares para autores de post.
+* Crear fixtures de datos locales actualizados con la nueva base de Recetas USDA V3.
+* Consolidar flujos de pruebas unitarias (TDD) para el sistema de bans.
 
 ---
 

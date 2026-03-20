@@ -1,6 +1,6 @@
 from django.urls import path
-from usuarios.views import PerfilView
+from usuarios.views import BanUserView
 
 urlpatterns = [
-    path('perfil/', PerfilView.as_view(), name='profile-detail'),
+    path('ban/', BanUserView.as_view(), name='ban-user'),
 ]

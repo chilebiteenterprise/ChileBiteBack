@@ -5,6 +5,38 @@ from django.dispatch import receiver
 from django.db.models import F
 
 # ==============================
+# TAXONOMÍAS DINÁMICAS
+# ==============================
+class Pais(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        db_table = 'core_pais'
+
+class TipoPlato(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        db_table = 'core_tipoplato'
+
+
+class EstiloVida(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        db_table = 'core_estilovida'
+
+
+# ==============================
 # RECETAS
 # ==============================
 class Receta(models.Model):
@@ -19,8 +51,11 @@ class Receta(models.Model):
     preparacion = models.TextField(blank=True, null=True)
     imagen_url = models.URLField(blank=True, null=True)
     video_url = models.URLField(blank=True, null=True)
-    pais = models.CharField(max_length=100, blank=True, null=True)
-    categoria = models.CharField(max_length=100, blank=True, null=True)
+    pais = models.ForeignKey(Pais, on_delete=models.SET_NULL, blank=True, null=True, related_name='recetas')
+    tipo_plato = models.ForeignKey(TipoPlato, on_delete=models.SET_NULL, blank=True, null=True, related_name='recetas')
+    estilos_vida = models.ManyToManyField(EstiloVida, blank=True, related_name='recetas')
+    tiempo_preparacion = models.PositiveIntegerField(help_text="Tiempo de preparación en minutos", blank=True, null=True)
+    sugerencias = models.TextField(help_text="Tips o sugerencias del chef", blank=True, null=True)
     dificultad = models.CharField(
         max_length=15,
         choices=[

@@ -8,9 +8,18 @@ from recetas.views import (
     ComentarioRecetaListCreate,
     ComentarioRecetaDetail,
     ComentarioLikeToggleView,
+    PaisListView, PaisDetailView,
+    TipoPlatoListView, TipoPlatoDetailView,
+    EstiloVidaListView, EstiloVidaDetailView
 )
 
 urlpatterns = [
+    path('paises/', PaisListView.as_view(), name='pais-list-create'),
+    path('paises/<int:pk>/', PaisDetailView.as_view(), name='pais-detail'),
+    path('tipos-plato/', TipoPlatoListView.as_view(), name='tipoplato-list-create'),
+    path('tipos-plato/<int:pk>/', TipoPlatoDetailView.as_view(), name='tipoplato-detail'),
+    path('estilos-vida/', EstiloVidaListView.as_view(), name='estilovida-list-create'),
+    path('estilos-vida/<int:pk>/', EstiloVidaDetailView.as_view(), name='estilovida-detail'),
     path('ingredientes/', IngredienteListView.as_view(), name='ingrediente-list'),
     path('', RecetaListView.as_view(), name='receta-list-create'),
     path('<int:id>/', RecetaDetalleView.as_view(), name='receta-detail-update-delete'),

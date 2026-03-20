@@ -1,63 +1,52 @@
-"""
-Vista de perfil actualizada: Django ya NO gestiona usuarios.
-Toda la lógica de usuarios (lectura, edición, eliminación, registro)
-se realiza directamente en Supabase desde el frontend.
 
-Django solo mantiene la autenticación JWT para validar tokens en endpoints
-de otras entidades (recetas, categorías, etc.).
-"""
+
+import datetime
+from django.utils import timezone
+from django.core.mail import send_mail
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework import status
-
+from rest_framework.permissions import IsAuthenticated, BasePermission
+from .models import BannedUser
 
 class IsAdminUser(BasePermission):
-    """Permiso: solo usuarios con role='admin' en sus metadatos de Supabase."""
+    """
+    Permiso personalizado que verifica si el usuario autenticado (AuthUser de Supabase)
+    tiene el rol 'admin'.
+    """
     def has_permission(self, request, view):
-        return bool(
-            request.user
-            and request.user.is_authenticated
-            and getattr(request.user, 'role', None) == 'admin'
+        return bool(request.user and hasattr(request.user, 'role') and request.user.role == 'admin')
+
+class BanUserView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request):
+        user_id = request.data.get('user_id')
+        razon = request.data.get('razon')
+        duracion_dias = request.data.get('duracion_dias', 7)
+        user_email = request.data.get('user_email') 
+        
+        if not user_id or not razon:
+            return Response({"error": "user_id y razon son requeridos"}, status=status.HTTP_400_BAD_REQUEST)
+
+        fecha_fin = timezone.now() + datetime.timedelta(days=int(duracion_dias))
+        
+        banned_user, created = BannedUser.objects.update_or_create(
+            user_id=user_id,
+            defaults={'razon': razon, 'fecha_fin': fecha_fin}
         )
 
+        if user_email:
+            try:
+                send_mail(
+                    subject="Notificación de Baneo - ChileBite",
+                    message=f"Tu cuenta ha sido suspendida para ciertas acciones (como comentar) por {duracion_dias} días.\n\nRazón: {razon}\nFecha de término: {fecha_fin.strftime('%d/%m/%Y %H:%M')} (UTC)",
+                    from_email=None,
+                    recipient_list=[user_email],
+                    fail_silently=True
+                )
+            except Exception:
+                pass
 
-class PerfilView(APIView):
-    """
-    OBSOLETO para gestión de usuarios.
-    Se mantiene únicamente como referencia de la autenticación JWT.
-
-    Toda la gestión de usuarios ocurre en Supabase (tabla public.profiles):
-      - Lectura:     supabase.from('profiles').select('*').eq('id', userId)
-      - Edición:     supabase.from('profiles').update({...}).eq('id', userId)
-      - Eliminación: Edge Function 'delete-user' (service_role)
-      - Registro:    supabase.auth.signUp({...})
-      - Login:       supabase.auth.signInWithPassword({...})
-    """
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        """
-        Retorna los datos básicos del usuario desde el JWT.
-        Prefiere usar supabase.from('profiles') directamente desde el frontend.
-        """
-        user = request.user
-        return Response({
-            'id': user.id,
-            'email': user.email,
-            'role': user.role,
-            'username': user.username,
-            'message': 'Gestión de perfil migrada a Supabase. Usa profileService.js en el frontend.'
-        }, status=status.HTTP_200_OK)
-
-    def put(self, request):
-        return Response(
-            {"detail": "Operación migrada a Supabase. Usa updateProfile() desde el frontend."},
-            status=status.HTTP_501_NOT_IMPLEMENTED
-        )
-
-    def delete(self, request):
-        return Response(
-            {"detail": "Operación migrada a Supabase. Usa la Edge Function 'delete-user' desde el frontend."},
-            status=status.HTTP_501_NOT_IMPLEMENTED
-        )
+        action = "baneado" if created else "baneo_actualizado"
+        return Response({"status": action, "fecha_fin": fecha_fin}, status=status.HTTP_200_OK)
