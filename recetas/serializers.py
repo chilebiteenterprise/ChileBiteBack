@@ -1,3 +1,4 @@
+import bleach
 from rest_framework import serializers
 from recetas.models import Receta, ComentarioReceta, ComentarioLike, RecetaLike, RecetaGuardada, Ingrediente, RecetaIngrediente, Pais, TipoPlato, EstiloVida
 
@@ -81,6 +82,15 @@ class RecetaDetalleSerializer(serializers.ModelSerializer):
             'ingredientes_detalle'
         ]
 
+    def validate(self, attrs):
+        # Limpieza de inputs preventivo anti-XSS usando bleach
+        text_fields = ['nombre', 'descripcion_corta', 'descripcion_larga', 'preparacion', 'sugerencias']
+        for field in text_fields:
+            if field in attrs and isinstance(attrs[field], str):
+                # bleach.clean elimina tags <script> o atributos onX()
+                attrs[field] = bleach.clean(attrs[field], strip=True)
+        return attrs
+
     def create(self, validated_data):
         ingredientes_data = validated_data.pop('ingredientes_detalle', [])
         receta = super().create(validated_data)
@@ -151,6 +161,11 @@ class ComentarioRecetaSerializer(serializers.ModelSerializer):
             'estado', 'comentario_padre', 'contador_likes', 
             'usuario_nombre', 'autor_rol', 'usuario_le_dio_like' 
         ]
+        
+    def validate_texto(self, value):
+        if value and isinstance(value, str):
+            return bleach.clean(value, strip=True)
+        return value
         
     def get_usuario_nombre(self, obj):
         return "Usuario"
