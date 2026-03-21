@@ -12,6 +12,7 @@ class AuthUser:
     """
     def __init__(self, token_payload):
         self.id = token_payload.get('sub')
+        self.pk = self.id  # CRITICO para compatibilidad con DRF (Throttling, Permisos)
         self.email = token_payload.get('email')
         
         # Extraer metadatos
