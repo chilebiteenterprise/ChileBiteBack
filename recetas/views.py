@@ -31,7 +31,7 @@ class IngredienteListView(generics.ListAPIView):
                 queryset = queryset.filter(nombre__icontains=palabra)
         
         # Ordenar por longitud (los ingredientes básicos tienen nombres más cortos)
-        return queryset.annotate(nombre_len=Length('nombre')).order_by('nombre_len')[:50]
+        return queryset.annotate(nombre_len=Length('nombre')).order_by('nombre_len')
 
 class PaisListView(generics.ListCreateAPIView):
     queryset = Pais.objects.all()
